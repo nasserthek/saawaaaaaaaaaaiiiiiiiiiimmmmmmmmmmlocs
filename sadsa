@@ -1,0 +1,250 @@
+-- ====================================================
+-- Services
+-- ====================================================
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+local CoreGui = game:GetService("CoreGui")
+local TweenService = game:GetService("TweenService")
+local SoundService = game:GetService("SoundService")
+local UserInputService = game:GetService("UserInputService")
+
+-- ====================================================
+-- نظام التحقق من الـ ID (المعرفات المصرح لها)
+-- ====================================================
+local allowedUserIDs = {
+    994367755,  
+    8755861015, 
+    2626953711, 
+    11286225634,
+    8560029261,
+    4468335623,
+    8385909850,
+    10500018731,
+    7397509111,
+    10787251330,
+    1220,
+}
+
+-- التحقق من هوية اللاعب الحالي
+local localPlayer = Players.LocalPlayer
+
+if not table.find(allowedUserIDs, localPlayer.UserId) then
+    -- طرد اللاعب فوراً وإظهار رسالة "لم يتم تفعيلك"
+    localPlayer:Kick("لم يتم تفعيلك")
+    
+    -- إيقاف وتدمير السكربت
+    if script then 
+        script:Destroy() 
+    end
+    return 
+end
+
+-- ====================================================
+-- الكود الأساسي للسكربت (يعمل فقط للمصرح لهم)
+-- ====================================================
+local TARGET_USERNAME = localPlayer.Name 
+local camera = Workspace.CurrentCamera
+
+-- State Management
+local isSpectating = false
+local originalCameraSubject = nil
+local renderConnection = nil
+local isGuiVisible = true 
+
+-- Create Main GUI Elements
+local ScreenGui = Instance.new("ScreenGui")
+local ToggleButton = Instance.new("TextButton")
+local UICorner_Button = Instance.new("UICorner")
+local UIBorder_Button = Instance.new("UIStroke")
+
+ScreenGui.Name = "CustomSpectateGui_AbuNawaf"
+ScreenGui.ResetOnSpawn = false
+
+if syn and syn.protect_gui then
+    syn.protect_gui(ScreenGui)
+    ScreenGui.Parent = CoreGui
+elseif gethui then
+    ScreenGui.Parent = gethui()
+else
+    ScreenGui.Parent = localPlayer:WaitForChild("PlayerGui")
+end
+
+-- Button Properties
+ToggleButton.Name = "SpectateButton"
+ToggleButton.Parent = ScreenGui
+ToggleButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+ToggleButton.Position = UDim2.new(0, 20, 0, 20)
+ToggleButton.Size = UDim2.new(0, 150, 0, 45)
+ToggleButton.Font = Enum.Font.SourceSansBold
+ToggleButton.Text = "aimlock"
+ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleButton.TextSize = 18
+ToggleButton.Active = true
+ToggleButton.Visible = true 
+
+UICorner_Button.Parent = ToggleButton
+UICorner_Button.CornerRadius = UDim.new(0, 10)
+
+UIBorder_Button.Parent = ToggleButton
+UIBorder_Button.Color = Color3.fromRGB(255, 255, 255)
+UIBorder_Button.Thickness = 2
+
+-- Keyboard Input Logic (U Key to Toggle Visibility)
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.U then
+        isGuiVisible = not isGuiVisible
+        ToggleButton.Visible = isGuiVisible
+    end
+end)
+
+-- نظام الإشعار
+local function createNewNotification()
+    local sound = Instance.new("Sound")
+    sound.SoundId = "rbxassetid://4590662762"
+    sound.Volume = 0.5
+    sound.Parent = SoundService
+    sound:Play()
+    game:GetService("Debris"):AddItem(sound, 3)
+
+    local NotifFrame = Instance.new("Frame")
+    local NotifText = Instance.new("TextLabel")
+    local UICorner_Notif = Instance.new("UICorner")
+    local UIBorder_Notif = Instance.new("UIStroke")
+
+    NotifFrame.Name = "ModernNotification"
+    NotifFrame.Parent = ScreenGui
+    NotifFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+    NotifFrame.Position = UDim2.new(0.5, -125, 0.85, 0)
+    NotifFrame.Size = UDim2.new(0, 250, 0, 40)
+    NotifFrame.BackgroundTransparency = 1 
+
+    UICorner_Notif.Parent = NotifFrame
+    UICorner_Notif.CornerRadius = UDim.new(0, 8)
+
+    UIBorder_Notif.Parent = NotifFrame
+    UIBorder_Notif.Color = Color3.fromRGB(255, 255, 255)
+    UIBorder_Notif.Thickness = 1.5
+    UIBorder_Notif.Transparency = 1
+
+    NotifText.Parent = NotifFrame
+    NotifText.BackgroundTransparency = 1
+    NotifText.Size = UDim2.new(1, 0, 1, 0)
+    NotifText.Font = Enum.Font.GothamBold
+    NotifText.Text = "تم تشغيل السكربت"
+    NotifText.TextColor3 = Color3.fromRGB(255, 255, 255)
+    NotifText.TextSize = 15
+    NotifText.TextTransparency = 1
+
+    TweenService:Create(NotifFrame, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundTransparency = 0.05, Position = UDim2.new(0.5, -125, 0.82, 0)}):Play()
+    TweenService:Create(UIBorder_Notif, TweenInfo.new(0.4), {Transparency = 0}):Play()
+    TweenService:Create(NotifText, TweenInfo.new(0.4), {TextTransparency = 0}):Play()
+
+    task.wait(3.5)
+
+    local fadeOutFrame = TweenService:Create(NotifFrame, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {BackgroundTransparency = 1, Position = UDim2.new(0.5, -125, 0.85, 0)})
+    local fadeOutBorder = TweenService:Create(UIBorder_Notif, TweenInfo.new(0.4), {Transparency = 1})
+    local fadeOutText = TweenService:Create(NotifText, TweenInfo.new(0.4), {TextTransparency = 1})
+
+    fadeOutFrame:Play()
+    fadeOutBorder:Play()
+    fadeOutText:Play()
+
+    fadeOutFrame.Completed:Connect(function()
+        NotifFrame:Destroy()
+    end)
+end
+
+task.spawn(createNewNotification)
+
+-- Function to find target player
+local function getTargetPlayer()
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player.Name:lower() == TARGET_USERNAME:lower() then
+            return player
+        end
+    end
+    return nil
+end
+
+-- Spectate Actions
+local function stopSpectating()
+    isSpectating = false
+    if renderConnection then
+        renderConnection:Disconnect()
+        renderConnection = nil
+    end
+        
+    camera.CameraType = Enum.CameraType.Custom
+    if localPlayer.Character and localPlayer.Character:FindFirstChildOfClass("Humanoid") then
+        camera.CameraSubject = localPlayer.Character:FindFirstChildOfClass("Humanoid")
+    end
+        
+    ToggleButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    ToggleButton.Text = "aimlock"
+end
+
+local function startSpectating()
+    camera = Workspace.CurrentCamera
+    local target = getTargetPlayer()
+    if not target then return end
+        
+    originalCameraSubject = camera.CameraSubject
+    isSpectating = true
+        
+    ToggleButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    ToggleButton.TextColor3 = Color3.fromRGB(0, 0, 0)
+    ToggleButton.Text = "aimlock"
+
+    renderConnection = RunService.RenderStepped:Connect(function()
+        camera = Workspace.CurrentCamera
+        local currentTarget = getTargetPlayer()
+        if currentTarget and currentTarget.Character and currentTarget.Character:FindFirstChildOfClass("Humanoid") then
+            camera.CameraType = Enum.CameraType.Custom
+            if camera.CameraSubject ~= currentTarget.Character:FindFirstChildOfClass("Humanoid") then
+                camera.CameraSubject = currentTarget.Character:FindFirstChildOfClass("Humanoid")
+            end
+        else
+            task.wait(0.5)
+            if not getTargetPlayer() or not getTargetPlayer().Character then
+                stopSpectating()
+            end
+        end
+    end)
+end
+
+ToggleButton.MouseButton1Click:Connect(function()
+    if isSpectating then
+        stopSpectating()
+    else
+        startSpectating()
+    end
+end)
+
+-- نظام التحقق عند ركوب السيارة
+local function listenToCharacter(character)
+    local humanoid = character:WaitForChild("Humanoid", 10)
+    if humanoid then
+        humanoid.Seated:Connect(function(isSeated, seat)
+            if isSeated then
+                if not isSpectating then
+                    startSpectating()
+                end
+            else
+                if isSpectating then
+                    stopSpectating()
+                end
+            end
+        end)
+    end
+end
+
+if localPlayer.Character then
+    task.spawn(listenToCharacter, localPlayer.Character)
+end
+
+localPlayer.CharacterAdded:Connect(function(newCharacter)
+    task.spawn(listenToCharacter, newCharacter)
+end)
