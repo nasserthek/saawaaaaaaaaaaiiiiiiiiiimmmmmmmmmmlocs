@@ -15,7 +15,7 @@ local UserInputService = game:GetService("UserInputService")
 local allowedUserIDs = {
     994367755,  
     8755861015, 
-    626953711, 
+    2626953711, 
     11286225634,
     8560029261,
     4468335623,
